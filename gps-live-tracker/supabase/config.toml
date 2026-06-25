@@ -1,0 +1,11 @@
+project_id = "bthayclrnzcnknexfwhn"
+
+[api]
+port = 54321
+schemas = ["public"]
+
+[functions.create_trip]
+verify_jwt = true
+
+[functions.end_trip]
+verify_jwt = true

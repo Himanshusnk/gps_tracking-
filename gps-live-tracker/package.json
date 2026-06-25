@@ -1,0 +1,8 @@
+{
+  "name": "gps-live-tracker",
+  "version": "1.0.0",
+  "description": "GPS Live Tracker backend dependencies",
+  "dependencies": {
+    "@supabase/server": "^1.2.0"
+  }
+}
