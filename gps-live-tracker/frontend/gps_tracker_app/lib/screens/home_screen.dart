@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Select a registered device to begin tracking or simulator runs.',
+              'Select a registered device to begin tracking.',
               style: TextStyle(color: AppTheme.textSecondaryDark),
             ),
             const SizedBox(height: 20),

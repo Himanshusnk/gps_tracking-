@@ -22,14 +22,15 @@ class _TrackerScreenState extends State<TrackerScreen> {
   final LocationService _locationService = LocationService();
   
   bool _isTripActive = false;
-  bool _isSimulating = true; // default to true since it's easy to test
   bool _isLoading = false;
   String? _activeTripId;
   StreamSubscription? _gpsSubscription;
+  Timer? _gpsTimer;
   int _pointCount = 0;
 
   @override
   void dispose() {
+    _gpsTimer?.cancel();
     _gpsSubscription?.cancel();
     _locationService.dispose();
     _tripNameController.dispose();
@@ -53,6 +54,20 @@ class _TrackerScreenState extends State<TrackerScreen> {
         _isLoading = true;
       });
 
+      // Check permissions and get initial position first
+      final currentPos = await _locationService.getCurrentPosition();
+      if (currentPos == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to get physical location. Please enable location services and grant permission.')),
+          );
+        }
+        return;
+      }
+
       final tripId = await supabaseService.startTrip(widget.device.id, name);
 
       if (tripId != null) {
@@ -62,24 +77,16 @@ class _TrackerScreenState extends State<TrackerScreen> {
           _pointCount = 0;
         });
 
-        // Initialize coordinates updates channel
-        if (_isSimulating) {
-          _locationService.startSimulation(intervalSeconds: 30);
-          _gpsSubscription = _locationService.positionStream.listen((pos) {
+        // Send initial location
+        _sendCoordinate(currentPos.latitude, currentPos.longitude, currentPos.speed);
+
+        // Set up periodic timer to ping location updates every 30 seconds
+        _gpsTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+          final pos = await _locationService.getCurrentPosition();
+          if (pos != null) {
             _sendCoordinate(pos.latitude, pos.longitude, pos.speed);
-          });
-        } else {
-          // Physical GPS
-          final currentPos = await _locationService.getCurrentPosition();
-          if (currentPos != null) {
-            _sendCoordinate(currentPos.latitude, currentPos.longitude, currentPos.speed);
           }
-          // Subscribe to continuous geolocator moves (mocked as simple stream)
-          _locationService.startSimulation(intervalSeconds: 30); // fallback simulation
-          _gpsSubscription = _locationService.positionStream.listen((pos) {
-            _sendCoordinate(pos.latitude, pos.longitude, pos.speed);
-          });
-        }
+        });
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -99,8 +106,9 @@ class _TrackerScreenState extends State<TrackerScreen> {
         _isLoading = true;
       });
 
+      _gpsTimer?.cancel();
+      _gpsTimer = null;
       _gpsSubscription?.cancel();
-      _locationService.stopSimulation();
 
       final success = await supabaseService.endTrip(_activeTripId!);
 
@@ -211,21 +219,6 @@ class _TrackerScreenState extends State<TrackerScreen> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.directions_bike),
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Simulation Toggle Switch
-              SwitchListTile(
-                title: const Text('Simulation Mode'),
-                subtitle: const Text('Generates walking path coordinates every 30 seconds'),
-                value: _isSimulating,
-                onChanged: _isTripActive
-                    ? null
-                    : (val) {
-                        setState(() {
-                          _isSimulating = val;
-                        });
-                      },
-                secondary: const Icon(Icons.bolt, color: AppTheme.secondaryAccent),
               ),
               const SizedBox(height: 24),
               CustomButton(

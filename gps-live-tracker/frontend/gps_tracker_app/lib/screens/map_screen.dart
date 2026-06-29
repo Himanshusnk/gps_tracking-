@@ -23,7 +23,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   final RouteService _routeService = RouteService();
   
@@ -33,6 +33,7 @@ class _MapScreenState extends State<MapScreen> {
   double _totalDistance = 0.0;
   
   StreamSubscription? _realtimeSubscription;
+  AnimationController? _animationController;
 
   @override
   void initState() {
@@ -49,13 +50,12 @@ class _MapScreenState extends State<MapScreen> {
       
       setState(() {
         _points.add(newPoint);
-        _currentPosition = newPoint;
         _currentSpeed = location.speed;
         _totalDistance = _routeService.calculateTotalDistance(_points);
       });
 
-      // Move map view to follow the new live point
-      _mapController.move(newPoint, _mapController.camera.zoom);
+      // Move map view smoothly to follow the new live point
+      _animatedMapMove(newPoint, _mapController.camera.zoom);
     });
   }
 
@@ -72,10 +72,43 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    _animationController?.dispose(); // Stop any active animation
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    final startLat = _currentPosition?.latitude ?? destLocation.latitude;
+    final startLng = _currentPosition?.longitude ?? destLocation.longitude;
+    final startZoom = _mapController.camera.zoom;
+
+    final latTween = Tween<double>(begin: startLat, end: destLocation.latitude);
+    final lngTween = Tween<double>(begin: startLng, end: destLocation.longitude);
+    final zoomTween = Tween<double>(begin: startZoom, end: destZoom);
+
+    final animation = CurvedAnimation(parent: _animationController!, curve: Curves.fastOutSlowIn);
+
+    _animationController!.addListener(() {
+      final currentPoint = LatLng(
+        latTween.evaluate(animation),
+        lngTween.evaluate(animation),
+      );
+      setState(() {
+        _currentPosition = currentPoint;
+      });
+      _mapController.move(currentPoint, zoomTween.evaluate(animation));
+    });
+
+    _animationController!.forward();
+  }
+
   @override
   void dispose() {
     _realtimeSubscription?.cancel();
     context.read<SupabaseService>().unsubscribeFromLiveTrip();
+    _animationController?.dispose();
     _mapController.dispose();
     super.dispose();
   }

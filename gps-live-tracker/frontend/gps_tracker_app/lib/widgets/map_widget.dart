@@ -67,32 +67,34 @@ class _MapWidgetState extends State<MapWidget> {
           point: widget.currentPosition!,
           width: 45.0,
           height: 45.0,
+          alignment: Alignment.topCenter,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Ripple effect simulation
+              // Ripple effect
               Container(
-                width: 32,
-                height: 32,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryAccent.withOpacity(0.3),
+                  color: Colors.redAccent.withOpacity(0.25),
                   shape: BoxShape.circle,
                 ),
               ),
-              Container(
-                width: 16,
-                height: 16,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
+              const Icon(
+                Icons.location_on,
+                color: Colors.redAccent,
+                size: 36,
               ),
-              Container(
-                width: 12,
-                height: 12,
-                decoration: const BoxDecoration(
-                  color: AppTheme.secondaryAccent,
-                  shape: BoxShape.circle,
+              // Inner white dot of the location pin
+              Positioned(
+                top: 12,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ],
